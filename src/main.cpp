@@ -1,6 +1,5 @@
 #include <QtCore>
 #include <QtGui>
-#include <QtWidgets>
 
 #include <stdio.h>
 
@@ -8,12 +7,11 @@
 
 #include "gpxparser.h"
 #include "hrmparser.h"
-#include "dialog.h"
 
 void usage()
 {
     printf("usage:\n"
-           "  gpxhrm <gpxFile> <hrmFile>\n"
+           "  hrmgpx [options] <hrmFile> [gpxFile]\n"
            "\n"
            "Options:\n"
            " --fetch-hrm        Download HR data from Polar watch\n"
@@ -23,7 +21,7 @@ void usage()
 int readHRMData(HWND hWnd)
 {
     int error = 0;
-    printf("Starting readHRMData...");
+    printf("Connecting to Polar monitor...\n");
     if (!fnHRMCom_ResetIRCommunication (0))
     {
         // Resetting IR connection was not successful
@@ -67,6 +65,7 @@ int readHRMData(HWND hWnd)
         }
     }
 
+    printf("Please wait while downloading HRM data from monitor...\n");
     if (error >= 0) {
         // Read exercise files from HR monitor
         if (!fnHRMCom_ReadExercisesData (hWnd, FALSE))
@@ -76,7 +75,14 @@ int readHRMData(HWND hWnd)
         }
     }
 
+    int newImportedFilesCount = 0;
+    int invalidImportedFilesCount = 0;
     if (error >= 0) {
+        QDir cwd = QDir::current();
+        if (!cwd.exists(QLatin1String("hrm")))
+            cwd.mkdir(QLatin1String("hrm"));
+        const QString outputPath = cwd.absoluteFilePath(QLatin1String("hrm"));
+
         POLAR_EXERCISEFILE	pef;
         for (int exerciseIndex = 0; exerciseIndex < psmi.iTotalFiles; ++exerciseIndex) {
             if (!fnHRMCom_GetExeFileInfo (exerciseIndex, &pef)) {
@@ -88,21 +94,31 @@ int readHRMData(HWND hWnd)
                 break;
             }
 
-            QDir cwd = QDir::current();
-            if (!cwd.exists(QLatin1String("files")))
-                cwd.mkdir(QLatin1String("files"));
-            QString fileName = cwd.absoluteFilePath(QLatin1String("files"));
-            fileName.append(QString::fromAscii("/%1-%2-%3.hrm").arg(pef.iExerciseID).arg(pef.iDate).arg(pef.iTime));
-            QByteArray name = fileName.toAscii();
-            printf("Saving file %s\n", qPrintable(fileName));
-            if (!fnHRMCom_SaveExerciseHRM (hWnd, (LPTSTR)name.constData(), 0)) {
-                error = -7;
-                break;
+            QTime t(0,0);
+            const QString strTime = t.addMSecs(pef.iTime * 1000).toString(QLatin1String("hhmmss"));
+
+            const QString fileName = QString::fromAscii("%1/%2-%3.hrm").arg(outputPath).arg(pef.iDate).arg(strTime);
+            const QByteArray name = fileName.toAscii();
+            if (pef.iDuration == 0) {
+                ++invalidImportedFilesCount;
+            } else {
+                if (!QFile::exists(fileName)) {
+                    printf("Saving file %s\n", qPrintable(fileName));
+                    if (!fnHRMCom_SaveExerciseHRM (hWnd, (LPTSTR)name.constData(), 0)) {
+                        error = -7;
+                        break;
+                    }
+                    ++newImportedFilesCount;
+                }
             }
         }
     }
-    if (error >= 0) {
-        printf("Imported %d exercise files\n", psmi.iTotalFiles);
+    if (error < 0) {
+        printf("ERROR: (errorcode: %d)\n", error);
+    } else {
+        printf("Imported %d new files of a total of %d exercise files\n", newImportedFilesCount, psmi.iTotalFiles);
+        if (invalidImportedFilesCount)
+            printf("Warning: %d invalid files ignored\n", invalidImportedFilesCount);
     }
 
     // close conn
@@ -111,69 +127,71 @@ int readHRMData(HWND hWnd)
     return error;
 }
 
-int mergeTracks(const QString &gpxFile, const QString &hrmFile)
+int mergeTracks(const QString &hrmFile, const QString &gpxFilename)
 {
-    printf("Analyzing GPX file: %s\n", qPrintable(gpxFile));
-
-    GpxParser gpxParser(gpxFile);
-    if (gpxParser.parse()) {
-        qint64 startTime = gpxParser.startTime();
-        qint64 endTime = gpxParser.endTime();
-        qint64 elapsedTime = endTime - startTime;
-
-        QString startStr = msToDateTimeString(startTime);
-        QString endStr = msToDateTimeString(endTime);
-        QString elapsedStr = msToTimeString(elapsedTime);
-
-        printf("Start time:     %s\n", qPrintable(startStr));
-        printf("End time:       %s\n", qPrintable(endStr));
-        printf("Elapsed time:   %s\n", qPrintable(elapsedStr));
-        printf("Start altitude: %g\n", gpxParser.startAltitude());
-        printf("End altitude:   %g\n", gpxParser.endAltitude());
+    SampleData gpxSampleData;
+    if (!gpxFilename.isNull()) {
+        QFile gpxFile(gpxFilename);
+        if (gpxFile.open(QIODevice::ReadOnly)) {
+            printf("Analyzing GPX file: %s\n", qPrintable(gpxFilename));
+            if (!loadGPX(&gpxSampleData, &gpxFile))
+                return -1;
+            gpxSampleData.print();
+        }
+        gpxFile.close();
     }
-
     printf("Analyzing HRM file: %s\n", qPrintable(hrmFile));
-    HRMParser hrmParser(hrmFile);
-    if (hrmParser.parse()) {
-        qint64 startTime = hrmParser.startTime();
-        qint64 endTime = hrmParser.endTime();
-        qint64 elapsedTime = endTime - startTime;
+    SampleData hrmSampleData;
 
-        QString startStr = msToDateTimeString(startTime);
-        QString endStr = msToDateTimeString(endTime);
-        QString elapsedStr = msToTimeString(elapsedTime);
-
-        printf("Start time:     %s\n", qPrintable(startStr));
-        printf("End time:       %s\n", qPrintable(endStr));
-        printf("Elapsed time:   %s\n", qPrintable(elapsedStr));
-        printf("Start altitude: %g\n", hrmParser.startAltitude());
-        printf("End altitude:   %g\n", hrmParser.endAltitude());
-        printf("Interval:       %d\n", hrmParser.m_interval);
-        printf("Samples:        %d\n", hrmParser.samples.count());
+    HRMReader hrmReader(hrmFile);
+    if (hrmReader.read(&hrmSampleData)) {
+        hrmSampleData.print();
+        printf("Interval:       %d\n", hrmReader.interval());
+        printf("Samples:        %d\n", hrmSampleData.count());
     }
-
-    qint64 hrmStartTime = hrmParser.startTime();
-    qint64 hrmEndTime = hrmParser.endTime();
-
-    int gpxStart = gpxParser.samples.indexOfTime(hrmStartTime);
-    int gpxEnd = gpxParser.samples.indexOfTime(hrmEndTime);
 
     SampleData mergedSamples;
 
-    for (int i = gpxStart; i < gpxEnd; ++i) {
-        GpsSample sample = gpxParser.samples.at(i);
+    if (gpxSampleData.isEmpty()) {
+        mergedSamples = hrmSampleData;
+    } else {
+        mergedSamples.metaData.activity = hrmSampleData.metaData.activity;
+        mergedSamples.metaData.name = gpxSampleData.metaData.name;
+        mergedSamples.metaData.description = gpxSampleData.metaData.description;
+        qint64 hrmStartTime = hrmReader.startTime();
+        qint64 hrmEndTime = hrmReader.endTime();
 
-        //int index = hrmParser.samples.indexOfTime(sample.time);
-        //const GpsSample hrmSample = hrmParser.samples.at(index);
-        const GpsSample hrmSample = *hrmParser.samples.atTime(sample.time);
+        int gpxStart = gpxSampleData.indexOfTime(hrmStartTime);
+        int gpxEnd = gpxSampleData.indexOfTime(hrmEndTime);
 
-        const float hr = hrmSample.hr;
-        const float speed = hrmSample.speed;
 
-        sample.hr = hr;
-        sample.speed = speed;
-        mergedSamples << sample;
+        for (int i = gpxStart; i < gpxEnd; ++i) {
+            GpsSample sample = gpxSampleData.at(i);
+            if (i == gpxStart)
+                sample.time = hrmStartTime;
+            if (i == gpxEnd - 1) {
+                if (sample.time < hrmEndTime) 
+                    sample.time = hrmEndTime;
+            }
+            if (sample.time > hrmEndTime) {
+                sample.time = hrmEndTime;
+                i = gpxEnd;     // finish iteration and leave loop
+            }
+            const GpsSample hrmSample = *hrmSampleData.atTime(sample.time);
+
+            const float hr = hrmSample.hr;
+            const float speed = hrmSample.speed;
+
+            sample.hr = hr;
+            sample.speed = speed;
+            mergedSamples << sample;
+        }
     }
+    
+    printf("Result of merge:\n");
+    if (mergedSamples.count())
+        mergedSamples.print();
+    
 /*
     int lastGoodEle = -1;
     for (int i = 0; i < mergedSamples.count(); ++i) {
@@ -216,7 +234,14 @@ int mergeTracks(const QString &gpxFile, const QString &hrmFile)
 
       3/11 = x/13
                   */
-    mergedSamples.writeGPX(QLatin1String("output.gpx"));
+
+    QFile gpxFile(QStringLiteral("output.gpx"));
+    if (!gpxFile.open(QIODevice::WriteOnly)) {
+        return -1;
+    }
+    if (!saveGPX(mergedSamples, &gpxFile))
+        return -1;
+    gpxFile.close();
     return 0;
 }
 
@@ -224,8 +249,7 @@ int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
     bool fetch_hrm = false;
-    printf("test\n");
-    QString gpxFile, hrmFile;
+    QString gpxFilename, hrmFile;
     bool firstPass = true;
     foreach (const QString &arg, app.arguments()) {
         if (firstPass) {
@@ -235,17 +259,17 @@ int main(int argc, char **argv)
         if (arg == QLatin1String("--fetch-hrm")) {
             fetch_hrm = true;
         } else {
-            if (gpxFile.isNull())
-                gpxFile = arg;
-            else
+            if (hrmFile.isNull())
                 hrmFile = arg;
+            else
+                gpxFilename = arg;
         }
     }
-    printf("test\n");
+    
     if (fetch_hrm) {
         readHRMData(0);
-    } else if (!gpxFile.isNull() && !hrmFile.isNull()) {
-        mergeTracks(gpxFile, hrmFile);
+    } else if (!hrmFile.isNull()) {
+        mergeTracks(hrmFile, gpxFilename);
     } else {
         usage();
     }

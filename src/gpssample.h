@@ -9,24 +9,7 @@ struct GpsSample {
         : time(0), ele(0), lat(0), lon(0), hr(0), speed(0)
     {
     }
-    /*
-    GpsSample(const GpsSample &other)
-        : time(other.time), ele(other.ele), lat(other.lat), lon(other.lon),
-          hr(other.hr), speed(other.speed)
-    {
-    }
-
-    GpsSample &operator=(const GpsSample &other)
-    {
-        time = other.time;
-        ele = other.ele;
-        lat = other.lat;
-        lon = other.lon;
-        hr = other.hr;
-        speed = other.speed;
-        return *this;
-    }
-*/
+                    // Supported by:
     qint64 time;    // HRM+GPX
     float ele;      // HRM+GPX
     double lat;     // GPX
@@ -50,24 +33,45 @@ public:
     }
 
     int indexOfTime(qint64 time) const {
-        QVector<GpsSample>::const_iterator it = atTime(time);
-        return it - constBegin();
+        return atTime(time) - constBegin();
     }
+    
+    qint64 startTime() const;
+    qint64 endTime() const;
+    
+    float startAltitude() const;
+    float endAltitude() const;
+
+    float averageHR() const;
+    int maximumHR() const;
+    
+    void print() const;
+    void printSamples() const;
     bool writeGPX(const QString &fileName);
 
+public:
+    enum Activity {
+        Unknown = 0,
+        Cycling,
+        Running
+    };
+    
+    static const char *activityString(Activity activity)
+    {
+        static const char *activities[] = {"Unknown", "Cycling", "Running"};
+        return activities[int(activity)];
+    }
     struct MetaData {
-        bool isCycling;
+        MetaData() : activity(SampleData::Unknown) {}
+    
+    public:
+        SampleData::Activity activity;
         QString name;
+        QString description;
     } metaData;
 
-
 private:
-    static bool lessThanTime(const GpsSample &a, const GpsSample &b)
-    {
-        return a.time <= b.time;
-    }
-
-
+    static bool lessThanTime(const GpsSample &a, const GpsSample &b) { return a.time <= b.time; }
 };
 
 QString msToDateTimeString(qint64 msSinceEpoch);

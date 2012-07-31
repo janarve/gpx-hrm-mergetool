@@ -29,6 +29,79 @@ QDebug operator<<(QDebug dbg, const GpsSample &s)
     return dbg;
 }
 
+float SampleData::startAltitude() const
+{
+    if (!isEmpty())
+        return first().ele;
+    return -1.0;
+}
+
+float SampleData::endAltitude() const
+{
+    if (!isEmpty())
+        return last().ele;
+    return -1.0;
+}
+
+qint64 SampleData::startTime() const
+{
+    if (!isEmpty())
+        return first().time;
+    return -1.0;
+}
+
+qint64 SampleData::endTime() const
+{
+    if (!isEmpty())
+        return last().time;
+    return -1.0;
+}
+
+float SampleData::averageHR() const {
+    float sum = 0;
+    foreach (const GpsSample &sample, *this) {
+        sum += sample.hr;
+    }
+    return sum/count();
+}
+
+int SampleData::maximumHR() const {
+    int max = 0;
+    foreach (const GpsSample &sample, *this)
+        max = qMax(sample.hr, max);
+    return max;
+}
+
+void SampleData::print() const
+{
+    qint64 timeStarted = startTime();
+    qint64 timeFinsihed = endTime();
+    qint64 timeElapsed = timeFinsihed - timeStarted;
+
+    QString startStr = msToDateTimeString(timeStarted);
+    QString endStr = msToDateTimeString(timeFinsihed);
+    QString elapsedStr = msToTimeString(timeElapsed);
+
+    printf("Start time:     %s\n", qPrintable(startStr));
+    printf("End time:       %s\n", qPrintable(endStr));
+    printf("Elapsed time:   %s\n", qPrintable(elapsedStr));
+    printf("Start altitude: %g\n", startAltitude());
+    printf("End altitude:   %g\n", endAltitude());
+    printf("Activity:       %s\n", activityString(metaData.activity));
+    printf("HR avg/max:     %.1f/%d\n", averageHR(), maximumHR());
+    
+}
+
+void SampleData::printSamples() const
+{
+    for (int i = 0; i < count(); ++i) {
+        GpsSample sample = at(i);
+        QString strTime = msToDateTimeString(sample.time);
+        printf("hrm: %s %g, %g, %g", qPrintable(strTime), sample.hr, sample.speed/10, sample.ele);
+    }
+}
+
+
 bool SampleData::writeGPX(const QString &fileName)
 {
     QFile out(fileName);
@@ -47,7 +120,6 @@ bool SampleData::writeGPX(const QString &fileName)
     QDateTime dt;
     dt.setMSecsSinceEpoch(sample.time);
     const QString strDateTime = dt.toString(QLatin1String("dd/MM/yyyy hh:mm:ss"));
-    const char *activity = (metaData.isCycling ? "Cycling" : "Running");
 
     stream.setRealNumberNotation(QTextStream::FixedNotation);
     stream << "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
@@ -58,19 +130,19 @@ bool SampleData::writeGPX(const QString &fileName)
              " http://www.garmin.com/xmlschemas/TrackPointExtension/v1"
              " http://www.garmin.com/xmlschemas/TrackPointExtensionv1.xsd\""
            " version=\"1.1\""
-           " creator=\"GpxHrm\""
+           " creator=\"HrmGpx\""
            " xmlns=\"http://www.topografix.com/GPX/1/1\""
            " xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\""
            " xmlns:gpxtpx=\"http://www.garmin.com/xmlschemas/TrackPointExtension/v1\""
            " xmlns:gpxx=\"http://www.garmin.com/xmlschemas/GpxExtensions/v3\">\n";
     stream << "  <metadata>\n";
-    stream << "    <name>" << activity << " " << strDateTime << "</name>\n";
-    stream << "    <desc>" << activity << "</desc>\n";
+    stream << "    <name>" << metaData.name << "</name>\n";
+    stream << "    <desc>" << metaData.description << "</desc>\n";
     stream << "    <author>\n";
     stream << "      <name>Jan-Arve Saether</name>\n";
     stream << "    </author>\n";
     stream << "    <link href=\"jans@tihlde.org\">\n";
-    stream << "      <text>GpxHrm</text>\n";
+    stream << "      <text>HrmGpx</text>\n";
     stream << "    </link>\n";
     stream << "  </metadata>\n";
     stream << "  <trk>\n";

@@ -1,30 +1,16 @@
 #include "hrmparser.h"
 
-float HRMParser::startAltitude() const
-{
-    if (samples.count() > 0)
-        return samples.first().ele;
-    return -1.0;
-}
-
-float HRMParser::endAltitude() const
-{
-    if (samples.count() > 0)
-        return samples.last().ele;
-    return -1.0;
-}
-
-qint64 HRMParser::startTime() const
+qint64 HRMReader::startTime() const
 {
     return m_startTime;
 }
 
-qint64 HRMParser::endTime() const
+qint64 HRMReader::endTime() const
 {
     return m_startTime + m_length;
 }
 
-bool HRMParser::parse()
+bool HRMReader::read(SampleData *sampleData)
 {
     QFile file(m_fileName);
     if (file.open(QIODevice::ReadOnly)) {
@@ -101,14 +87,15 @@ bool HRMParser::parse()
                                 error("Params.StartTime is invalid");
                             }
                         } else if (line.indexOf("SMode=") == 0) {
-                            QByteArray ss = line.mid(5);
+                            QByteArray ss = line.mid(6);
                             speed = (ss.at(0) == '1');
                             //bool cadence = (ss.at(1) == '1');
                             altitude = (ss.at(2) == '1');
                             //bool power = (ss.at(3) == '1');
                             // power left right balance
                             // power pedalling index
-                            samples.metaData.isCycling = (ss.at(6) == '1');  //0 = HR data only
+                            if (ss.at(6) == '1')
+                                sampleData->metaData.activity = SampleData::Cycling;  //0 = HR data only
                                                             //1 = HR + cycling data
                             unitIsUS = (ss.at(7) == '1');  //0 = Euro (km, km/h, m, °C)
                                                             //1 = US (miles, mph, ft, °F)
@@ -155,7 +142,7 @@ bool HRMParser::parse()
                             sample.hr = list.at(0).toInt();
                             sample.speed = list.at(1).toFloat();
                             sample.ele = list.at(2).toFloat();
-                            samples << sample;
+                            sampleData->append(sample);
                             time += m_interval * 1000;
                         }
                     break;}
@@ -165,6 +152,18 @@ bool HRMParser::parse()
             }
             ++m_lineNumber;
         }  while (!file.atEnd());
+        
+        /* Since the HRM monitor will store data in fixed intervals, the last sample
+           will usually be before the monitor was stopped, thus if the Interval is 
+           60 seconds, it might be up to one minute off.
+           We then add another "sample" corresponding to the time the monitor was stopped.
+           This sample is just a copy of the previous one, but with time adjusted.
+        */
+        GpsSample sample = sampleData->last();
+        if (sample.time < m_startTime + m_length) {
+            sample.time = m_startTime + m_length;
+            sampleData->append(sample);
+        }
     } else {
         error("Could not open hrm file");
     }

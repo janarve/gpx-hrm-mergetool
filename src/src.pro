@@ -3,8 +3,8 @@
 ######################################################################
 
 TEMPLATE = app
-QT += core gui widgets
-TARGET = gpxhrm
+QT += core gui
+TARGET = hrmgpx
 DESTDIR = bin
 #DEPENDPATH += .
 INCLUDEPATH += .
@@ -14,7 +14,6 @@ SOURCES += main.cpp \
     gpxparser.cpp \
     hrmparser.cpp \
     gpssample.cpp 
-#    dialog.cpp
 
 CONFIG += console
 
@@ -22,6 +21,5 @@ HEADERS += \
     gpxparser.h \
     hrmparser.h \
     gpssample.h 
-#    dialog.h
     
 include(hrmcom/hrmcom.pri)

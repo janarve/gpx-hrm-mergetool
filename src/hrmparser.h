@@ -11,7 +11,7 @@
 #include "gpssample.h"
 
 
-class HRMParser {
+class HRMReader {
 public:
     enum Section {
         Params,
@@ -19,12 +19,12 @@ public:
         None
     };
 
-    HRMParser(const QString &fileName)
+    HRMReader(const QString &fileName)
         : m_lineNumber(-1), m_startTime(-1), m_length(-1), m_interval(-1), m_isCyclingData(0)
     {
         m_fileName = fileName;
     }
-    bool parse();
+    bool read(SampleData *sampleData);
 
     float startAltitude() const;
     float endAltitude() const;
@@ -60,18 +60,7 @@ public:
         file.close();
     }
 
-    void dump() const
-    {
-        qDebug("interval: %d", m_interval);
-        for (int i = 0; i < samples.count(); ++i) {
-            GpsSample sample = samples.at(i);
-            QString strTime = msToDateTimeString(sample.time);
-            qDebug("hrm: %s %g, %g, %g", qPrintable(strTime), sample.hr, sample.speed/10, sample.ele);
-        }
-    }
-
-    int interval() const { return m_interval;}
-    bool isCycling() const { return samples.metaData.isCycling; }
+    int interval() const { return m_interval;}    
 
 private:
 public:
@@ -81,7 +70,6 @@ public:
     int m_interval;
     bool m_isCyclingData;
     QTime m_time;
-    SampleData samples;
     QString m_fileName;
 };
 
