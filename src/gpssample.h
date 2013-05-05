@@ -6,7 +6,7 @@
 
 struct GpsSample {
     GpsSample()
-        : time(0), ele(0), lat(0), lon(0), hr(0), speed(0)
+        : time(0), ele(0), lat(0), lon(0), hr(0), speed(-1)
     {
     }
                     // Supported by:
@@ -44,7 +44,8 @@ public:
 
     float averageHR() const;
     int maximumHR() const;
-    
+
+    void correctTimeErrors();
     void print() const;
     void printSamples() const;
     bool writeGPX(const QString &fileName);

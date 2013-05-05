@@ -20,6 +20,7 @@ CONFIG += console
 HEADERS += \
     gpxparser.h \
     hrmparser.h \
-    gpssample.h 
+    gpssample.h \
+    geo.h
     
 include(hrmcom/hrmcom.pri)

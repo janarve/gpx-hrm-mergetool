@@ -150,6 +150,7 @@ bool saveGPX(const SampleData &sampleData, QIODevice *device)
         stream.setRealNumberPrecision(1);
         stream << "          <ele>" << sample.ele << "</ele>\n";
         stream << "          <time>" << msToDateTimeString(sample.time) << "</time>\n";
+        stream << "          <!--speed>" << sample.speed << "</speed-->\n";
         stream << "          <extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>"
                                 << sample.hr
                                 << "</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions>\n";

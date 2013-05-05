@@ -15,6 +15,7 @@ void usage()
            "\n"
            "Options:\n"
            " --fetch-hrm        Download HR data from Polar watch\n"
+           " --error_correction Try to detect errors and correct them\n"
            );
 }
 
@@ -97,8 +98,8 @@ int readHRMData(HWND hWnd)
             QTime t(0,0);
             const QString strTime = t.addMSecs(pef.iTime * 1000).toString(QLatin1String("hhmmss"));
 
-            const QString fileName = QString::fromAscii("%1/%2-%3.hrm").arg(outputPath).arg(pef.iDate).arg(strTime);
-            const QByteArray name = fileName.toAscii();
+            const QString fileName = QString::fromLatin1("%1/%2-%3.hrm").arg(outputPath).arg(pef.iDate).arg(strTime);
+            const QByteArray name = fileName.toLatin1();
             if (pef.iDuration == 0) {
                 ++invalidImportedFilesCount;
             } else {
@@ -127,7 +128,7 @@ int readHRMData(HWND hWnd)
     return error;
 }
 
-int mergeTracks(const QString &hrmFile, const QString &gpxFilename)
+int mergeTracks(const QString &hrmFile, const QString &gpxFilename, bool errorCorrection = false)
 {
     SampleData gpxSampleData;
     if (!gpxFilename.isNull()) {
@@ -188,11 +189,21 @@ int mergeTracks(const QString &hrmFile, const QString &gpxFilename)
         }
     }
     
+    if (errorCorrection)
+        mergedSamples.correctTimeErrors();
     printf("Result of merge:\n");
     if (mergedSamples.count())
         mergedSamples.print();
-    
-/*
+
+
+    /* gOOGLE Elevation API
+    QNetworkAccessManager *manager = new QNetworkAccessManager(this);
+    connect(manager, SIGNAL(finished(QNetworkReply*)),
+         this, SLOT(replyFinished(QNetworkReply*)));
+
+    manager->get(QNetworkRequest(QUrl("http://qt.nokia.com")));
+    */
+   /*
     int lastGoodEle = -1;
     for (int i = 0; i < mergedSamples.count(); ++i) {
         GpsSample &sample = mergedSamples[i];
@@ -249,6 +260,7 @@ int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
     bool fetch_hrm = false;
+    bool error_correction = false;
     QString gpxFilename, hrmFile;
     bool firstPass = true;
     foreach (const QString &arg, app.arguments()) {
@@ -258,6 +270,8 @@ int main(int argc, char **argv)
         }
         if (arg == QLatin1String("--fetch-hrm")) {
             fetch_hrm = true;
+        } else if (arg == QLatin1String("--error-correction")) {
+            error_correction = true;
         } else {
             if (hrmFile.isNull())
                 hrmFile = arg;
@@ -269,7 +283,13 @@ int main(int argc, char **argv)
     if (fetch_hrm) {
         readHRMData(0);
     } else if (!hrmFile.isNull()) {
-        mergeTracks(hrmFile, gpxFilename);
+/*
+        QNetworkAccessManager *manager = new QNetworkAccessManager(this);
+        connect(manager, SIGNAL(finished(QNetworkReply*)),
+        this, SLOT(replyFinished(QNetworkReply*)));
+        manager->get(QNetworkRequest(QUrl("http://qt.nokia.com")));
+*/
+        mergeTracks(hrmFile, gpxFilename, error_correction);
     } else {
         usage();
     }

@@ -2,6 +2,7 @@
 #include <QtCore/qdatetime.h>
 #include <QtCore/qfile.h>
 #include "gpssample.h"
+#include "geo.h"
 
 QString msToDateTimeString(qint64 msSinceEpoch)
 {
@@ -72,6 +73,66 @@ int SampleData::maximumHR() const {
     return max;
 }
 
+void SampleData::correctTimeErrors()
+{
+    double prevSpeed = 0;
+    double prevSpeedDelta = 0;
+    if (!isEmpty()) {
+        GpsSample prev = first();
+        int lastGoodIndex = -1;
+        for (int i = 1; i < count(); ++i) {
+            GpsSample &curr = operator[](i);
+            double dist = haversineDistance(prev.lat, prev.lon, curr.lat, curr.lon);
+            double speed = -1;
+            if (curr.time != prev.time)
+                speed = dist * 3600000.0 /(curr.time - prev.time);
+
+            curr.speed = speed;
+            if (i >= 1) {
+                if (lastGoodIndex != -1) {
+                    GpsSample lastGood = at(lastGoodIndex);
+                    double speedDelta = qAbs(speed - lastGood.speed);
+                    //printf("i: %d, lastGoodIndex: %d, speedDelta: %.2f, %.2f, %.2f, %.2f\n", i, lastGoodIndex, speedDelta, speed, lastGood.speed, dist);
+                    if (speedDelta < 20) {
+                        if (lastGoodIndex < i - 1) {
+                            // Backtrack with a smaller error threshold (10 km/h difference)
+                            const int lastBackTrackIndex = qMax(lastGoodIndex - 10, 0);
+                            while (lastGoodIndex > lastBackTrackIndex) {
+                                GpsSample &s1 = operator[](lastGoodIndex - 1);
+                                GpsSample &s2 = operator[](lastGoodIndex);
+                                if (qAbs(s1.speed - s2.speed) > 8) {
+                                    --lastGoodIndex;
+                                } else {
+                                    break;
+                                }
+                            }
+                            lastGood = at(lastGoodIndex);
+                            qint64 deltaTime = curr.time - lastGood.time;
+                            double deltaLat = curr.lat - lastGood.lat;
+                            double deltaLon = curr.lon - lastGood.lon;
+                            int deltaIndex = i - lastGoodIndex;
+                            printf("Invalid data in range [%d,%d], fixing with interpolation\n", lastGoodIndex + 1, i-1);
+                            // Do linear interpolation over the error range
+                            for (int j = lastGoodIndex + 1; j < i; ++j) {
+                                GpsSample &fix = operator[](j);
+                                fix.time = lastGood.time + deltaTime * (j - lastGoodIndex)/deltaIndex;
+                                fix.lat = lastGood.lat + deltaLat * (j - lastGoodIndex)/deltaIndex;
+                                fix.lon = lastGood.lon + deltaLon * (j - lastGoodIndex)/deltaIndex;
+                            }
+                        }
+                        lastGoodIndex = i;
+                    }
+                } else {
+                    lastGoodIndex = i;
+                }
+                prevSpeed = speed;
+            }
+            prev = curr;
+        }
+    }
+}
+
+
 void SampleData::print() const
 {
     qint64 timeStarted = startTime();
@@ -89,7 +150,24 @@ void SampleData::print() const
     printf("End altitude:   %g\n", endAltitude());
     printf("Activity:       %s\n", activityString(metaData.activity));
     printf("HR avg/max:     %.1f/%d\n", averageHR(), maximumHR());
-    
+
+    double maxSpeed = 0;
+    int maxSpeedIndex = -1;
+    if (!isEmpty()) {
+        GpsSample prev = first();
+        for (int i = 1; i < count(); ++i) {
+            GpsSample curr = at(i);
+            double dist = haversineDistance(prev.lat, prev.lon, curr.lat, curr.lon);
+            double speed = dist * 3600000.0 /(curr.time - prev.time);
+            if (speed > maxSpeed) {
+                maxSpeedIndex = i;
+                maxSpeed = speed;
+            }
+            prev = curr;
+        }
+    }
+    printf("Max speed:      %.1f\n", maxSpeed);
+    printf("Max speed index:%d\n", maxSpeedIndex);
 }
 
 void SampleData::printSamples() const
