@@ -4,6 +4,14 @@
 #include "gpssample.h"
 #include "geo.h"
 
+QString msToDateTimeStringHuman(qint64 msSinceEpoch)
+{
+    QDateTime dt;
+    dt.setMSecsSinceEpoch(msSinceEpoch);
+    QString str = dt.toString(QLatin1String("dd/MM/yyyy/hh:mm:ss.zzz"));    //Local timezone
+    return str;
+}
+
 QString msToDateTimeString(qint64 msSinceEpoch)
 {
     QDateTime dt;

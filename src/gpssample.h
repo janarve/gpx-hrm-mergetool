@@ -76,6 +76,7 @@ private:
 };
 
 QString msToDateTimeString(qint64 msSinceEpoch);
+QString msToDateTimeStringHuman(qint64 msSinceEpoch);
 QString msToTimeString(qint64 msSinceMidnight);
 
 #endif // GPSSAMPLE_H

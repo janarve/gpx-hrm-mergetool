@@ -2,6 +2,7 @@
 #include <QtCore/QXmlStreamReader>
 #include <QtCore/qfile.h>
 #include <QtCore/qdatetime.h>
+#include <QtCore/qregularexpression.h>
 
 
 class GpxStreamReader : public QXmlStreamReader
@@ -132,12 +133,20 @@ bool saveGPX(const SampleData &sampleData, QIODevice *device)
            " xmlns:gpxtpx=\"http://www.garmin.com/xmlschemas/TrackPointExtension/v1\""
            " xmlns:gpxx=\"http://www.garmin.com/xmlschemas/GpxExtensions/v3\">\n";
     stream << "  <metadata>\n";
-    stream << "    <name>" << sampleData.metaData.name << "</name>\n";
+    // In case the name contains the time, replace it with the new time
+    // This is how www.sports-tracker.com does it.
+    // 27/05/2013/15:24:01.000
+    QRegularExpression re(QStringLiteral("\\d\\d/\\d\\d/\\d{4}/\\d\\d:\\d\\d:\\d\\d\\.\\d+$"));
+    const GpsSample first = sampleData.first();
+    QString name = sampleData.metaData.name;
+    QString strTime = msToDateTimeStringHuman(first.time);
+    name.replace(re, strTime);
+    stream << "    <name>" << name << "</name>\n";
     stream << "    <desc>" << sampleData.metaData.description << "</desc>\n";
     stream << "    <author>\n";
-    stream << "      <name>Jan-Arve Saether</name>\n";
+    stream << "      <name>Jan Arve S\xc3\xa6ther</name>\n";    //&aelig;
     stream << "    </author>\n";
-    stream << "    <link href=\"jans@tihlde.org\">\n";
+    stream << "    <link href=\"sjarve@gmail.com\">\n";
     stream << "      <text>HrmGpx</text>\n";
     stream << "    </link>\n";
     stream << "  </metadata>\n";
