@@ -163,15 +163,28 @@ void SampleData::print() const
     int maxSpeedIndex = -1;
     if (!isEmpty()) {
         GpsSample prev = first();
-        for (int i = 1; i < count(); ++i) {
+        if (prev.speed == -1) {
+            double speed = 0.0;
+            for (int i = 1; i < count(); ++i) {
+                GpsSample curr = at(i);
+                double dist = haversineDistance(prev.lat, prev.lon, curr.lat, curr.lon);
+                speed = dist * 3600000.0 /(curr.time - prev.time);
+                prev.speed = speed;
+                if (speed > maxSpeed) {
+                    maxSpeedIndex = i;
+                    maxSpeed = speed;
+                }
+                prev = curr;
+            }
+            prev.speed = speed;
+        }
+        for (int i = 0; i < count(); ++i) {
             GpsSample curr = at(i);
-            double dist = haversineDistance(prev.lat, prev.lon, curr.lat, curr.lon);
-            double speed = dist * 3600000.0 /(curr.time - prev.time);
+            double speed = curr.speed;
             if (speed > maxSpeed) {
                 maxSpeedIndex = i;
                 maxSpeed = speed;
             }
-            prev = curr;
         }
     }
     printf("Max speed:      %.1f\n", maxSpeed);

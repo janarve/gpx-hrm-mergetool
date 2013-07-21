@@ -15,12 +15,11 @@ bool HRMReader::read(SampleData *sampleData)
     QFile file(m_fileName);
     if (file.open(QIODevice::ReadOnly)) {
         bool speed = false;
-        //bool cadence;
+        bool cadence;
         bool altitude = false;
         //bool power;
         // power left right balance
         // power pedalling index
-        bool hrcc = false;
         bool unitIsUS = false;
         //bool airpressure;
 
@@ -89,14 +88,16 @@ bool HRMReader::read(SampleData *sampleData)
                         } else if (line.indexOf("SMode=") == 0) {
                             QByteArray ss = line.mid(6);
                             speed = (ss.at(0) == '1');
-                            //bool cadence = (ss.at(1) == '1');
+                            cadence = (ss.at(1) == '1');
                             altitude = (ss.at(2) == '1');
                             //bool power = (ss.at(3) == '1');
-                            // power left right balance
-                            // power pedalling index
-                            if (ss.at(6) == '1')
-                                sampleData->metaData.activity = SampleData::Cycling;  //0 = HR data only
-                                                            //1 = HR + cycling data
+                            // bool power_left_right_balance = (ss.at(4) == '1');
+                            // bool power_pedalling_index = (ss.at(5) == '1');
+                            if (ss.at(6) == '1') {
+                                //0 = HR data only
+                                //1 = HR + cycling data
+                                sampleData->metaData.activity = SampleData::Cycling;
+                            }
                             unitIsUS = (ss.at(7) == '1');  //0 = Euro (km, km/h, m, °C)
                                                             //1 = US (miles, mph, ft, °F)
 
@@ -126,22 +127,24 @@ bool HRMReader::read(SampleData *sampleData)
                         }
                     break;
                     case HRData: {
-                        QRegExp rx;
-                        rx.setPattern(QLatin1String("\\d+\\s+\\d+\\s+\\d+"));
-                        rx.setPatternSyntax(QRegExp::W3CXmlSchema11);
-                        QString strLine(line.simplified());
-                        if (rx.exactMatch(strLine)) {
+                        if (line.count() > 0) {
                             /*
-                            hrm spd alt
-                            82  0   204
-                            151 184 207
+                            hrm spd [cad] alt
+                            82  0         204
+                            151 184       207
                             */
                             GpsSample sample;
-                            QStringList list = strLine.split(QLatin1Char(' '), QString::SkipEmptyParts);
+                            QList<QByteArray> list = line.split('\t');
                             sample.time = time;
-                            sample.hr = list.at(0).toInt();
-                            sample.speed = list.at(1).toFloat();
-                            sample.ele = list.at(2).toFloat();
+                            int index = 0;
+                            sample.hr = list.at(index++).toInt();
+                            if (speed)
+                                sample.speed = list.at(index++).toFloat()/10.0;
+                            if (cadence)
+                                // ignored
+                                index++;
+                            if (altitude)
+                                sample.ele = list.at(index++).toFloat();
                             sampleData->append(sample);
                             time += m_interval * 1000;
                         }

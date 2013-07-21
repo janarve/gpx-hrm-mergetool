@@ -101,6 +101,7 @@ int readHRMData(HWND hWnd)
             const QString fileName = QString::fromLatin1("%1/%2-%3.hrm").arg(outputPath).arg(pef.iDate).arg(strTime);
             const QByteArray name = fileName.toLatin1();
             if (pef.iDuration == 0) {
+                printf("Error in file %s\n", name.constData());
                 ++invalidImportedFilesCount;
             } else {
                 if (!QFile::exists(fileName)) {
