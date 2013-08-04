@@ -161,6 +161,7 @@ void SampleData::print() const
 
     double maxSpeed = 0;
     int maxSpeedIndex = -1;
+    double totalDist = 0;
     if (!isEmpty()) {
         GpsSample prev = first();
         if (prev.speed == -1) {
@@ -168,6 +169,7 @@ void SampleData::print() const
             for (int i = 1; i < count(); ++i) {
                 GpsSample curr = at(i);
                 double dist = haversineDistance(prev.lat, prev.lon, curr.lat, curr.lon);
+                totalDist += dist;
                 speed = dist * 3600000.0 /(curr.time - prev.time);
                 prev.speed = speed;
                 if (speed > maxSpeed) {
@@ -189,6 +191,8 @@ void SampleData::print() const
     }
     printf("Max speed:      %.1f\n", maxSpeed);
     printf("Max speed index:%d\n", maxSpeedIndex);
+    if (totalDist > 0)
+        printf("Route distance :%.2f\n", totalDist);
 }
 
 void SampleData::printSamples() const

@@ -77,11 +77,15 @@ bool GpxStreamReader::read(SampleData *sampleData)
                     eleElement = false;
                 } else if (timeElement) {
                     QString timeStr = text().toString();
-
+                    //2013-07-09T15:26:48Z
                     QString format("yyyy-MM-ddThh:mm:ss.z");    // note z is centiseconds!!
                     QDateTime dt = QDateTime::fromString(timeStr, format);
                     if (!dt.isValid()) {
                         QString format("yyyy-MM-ddThh:mm:ss");    // somtimes centiseconds can be omitted...
+                        dt = QDateTime::fromString(timeStr, format);
+                    }
+                    if (!dt.isValid()) {
+                        QString format("yyyy-MM-ddThh:mm:ssZ");    // somtimes centiseconds can be omitted...
                         dt = QDateTime::fromString(timeStr, format);
                     }
                     ok = dt.isValid();

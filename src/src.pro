@@ -13,7 +13,10 @@ INCLUDEPATH += .
 SOURCES += main.cpp \
     gpxparser.cpp \
     hrmparser.cpp \
-    gpssample.cpp 
+    gpssample.cpp \ 
+    geolocationinterpolator.cpp \
+    geolocationiterator.cpp \
+    geo.cpp
 
 CONFIG += console
 
@@ -21,6 +24,8 @@ HEADERS += \
     gpxparser.h \
     hrmparser.h \
     gpssample.h \
-    geo.h
+    geo.h \
+    geolocationinterpolator.h \
+    geolocationiterator.h
     
 include(hrmcom/hrmcom.pri)

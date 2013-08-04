@@ -7,6 +7,8 @@
 
 #include "gpxparser.h"
 #include "hrmparser.h"
+#include "geolocationiterator.h"
+#include "geolocationinterpolator.h"
 
 void usage()
 {
@@ -15,7 +17,8 @@ void usage()
            "\n"
            "Options:\n"
            " --fetch-hrm        Download HR data from Polar watch\n"
-           " --error_correction Try to detect errors and correct them\n"
+           " --error-correction Try to detect errors and correct them\n"
+           " --ignore-gpx-timestamps Use HRM speeds to create trackpoints in a route\n"
            );
 }
 
@@ -129,8 +132,9 @@ int readHRMData(HWND hWnd)
     return error;
 }
 
-int mergeTracks(const QString &hrmFile, const QString &gpxFilename, bool errorCorrection = false)
+int mergeTracks(const QString &hrmFile, const QString &gpxFilename, bool errorCorrection = false, bool ignoreGpxTimestamps = false)
 {
+    printf("ignoreGpxTimestamps:%d, \n", ignoreGpxTimestamps);
     SampleData gpxSampleData;
     if (!gpxFilename.isNull()) {
         QFile gpxFile(gpxFilename);
@@ -162,31 +166,52 @@ int mergeTracks(const QString &hrmFile, const QString &gpxFilename, bool errorCo
         mergedSamples.metaData.description = gpxSampleData.metaData.description;
         qint64 hrmStartTime = hrmReader.startTime();
         qint64 hrmEndTime = hrmReader.endTime();
+        if (ignoreGpxTimestamps) {
+            GeoLocationIterator gpxIter(&gpxSampleData);
+            GeoLocationInterpolator interpolator(gpxIter);
+            for (int i = 0; i < hrmSampleData.count(); ++i) {
+                GpsSample &hrmSample = hrmSampleData[i];
+                float speed = hrmSample.speed;  // km/h
+                qint64 time = hrmSample.time;
+                qint64 speedDuration = 0;
+                if (i == 0 && i < hrmSampleData.count() - 1) {
+                    speedDuration = hrmSampleData.at(i + 1).time - time;
+                } else {
+                    speedDuration = time - hrmSampleData.at(i - 1).time;
+                }
+                double hrmDist = speed * speedDuration/3600.0;    // meters
+                double lat, lon;
+                interpolator.advance(hrmDist, &lat, &lon);
+                hrmSample.lat = lat;
+                hrmSample.lon = lon;
+                mergedSamples << hrmSample;
+            }
+        } else {
 
-        int gpxStart = gpxSampleData.indexOfTime(hrmStartTime);
-        int gpxEnd = gpxSampleData.indexOfTime(hrmEndTime);
+            int gpxStart = gpxSampleData.indexOfTime(hrmStartTime);
+            int gpxEnd = gpxSampleData.indexOfTime(hrmEndTime);
 
-
-        for (int i = gpxStart; i < gpxEnd; ++i) {
-            GpsSample sample = gpxSampleData.at(i);
-            if (i == gpxStart)
-                sample.time = hrmStartTime;
-            if (i == gpxEnd - 1) {
-                if (sample.time < hrmEndTime) 
+            for (int i = gpxStart; i < gpxEnd; ++i) {
+                GpsSample sample = gpxSampleData.at(i);
+                if (i == gpxStart)
+                    sample.time = hrmStartTime;
+                if (i == gpxEnd - 1) {
+                    if (sample.time < hrmEndTime)
+                        sample.time = hrmEndTime;
+                }
+                if (sample.time > hrmEndTime) {
                     sample.time = hrmEndTime;
-            }
-            if (sample.time > hrmEndTime) {
-                sample.time = hrmEndTime;
-                i = gpxEnd;     // finish iteration and leave loop
-            }
-            const GpsSample hrmSample = *hrmSampleData.atTime(sample.time);
+                    i = gpxEnd;     // finish iteration and leave loop
+                }
+                const GpsSample hrmSample = *hrmSampleData.atTime(sample.time);
 
-            const float hr = hrmSample.hr;
-            const float speed = hrmSample.speed;
+                const float hr = hrmSample.hr;
+                const float speed = hrmSample.speed;
 
-            sample.hr = hr;
-            sample.speed = speed;
-            mergedSamples << sample;
+                sample.hr = hr;
+                sample.speed = speed;
+                mergedSamples << sample;
+            }
         }
     }
     
@@ -262,6 +287,7 @@ int main(int argc, char **argv)
     QCoreApplication app(argc, argv);
     bool fetch_hrm = false;
     bool error_correction = false;
+    bool ignore_gpx_timestamps = false;
     QString gpxFilename, hrmFile;
     bool firstPass = true;
     foreach (const QString &arg, app.arguments()) {
@@ -273,6 +299,8 @@ int main(int argc, char **argv)
             fetch_hrm = true;
         } else if (arg == QLatin1String("--error-correction")) {
             error_correction = true;
+        } else if (arg == QLatin1String("--ignore-gpx-timestamps")) {
+            ignore_gpx_timestamps = true;
         } else {
             if (hrmFile.isNull())
                 hrmFile = arg;
@@ -290,7 +318,7 @@ int main(int argc, char **argv)
         this, SLOT(replyFinished(QNetworkReply*)));
         manager->get(QNetworkRequest(QUrl("http://qt.nokia.com")));
 */
-        mergeTracks(hrmFile, gpxFilename, error_correction);
+        mergeTracks(hrmFile, gpxFilename, error_correction, ignore_gpx_timestamps);
     } else {
         usage();
     }

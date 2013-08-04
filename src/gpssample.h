@@ -2,6 +2,7 @@
 #define GPSSAMPLE_H
 #include <QtCore/qvector.h>
 #include <QtCore/qalgorithms.h>
+#include <QtCore/qpair.h>
 #include <QtCore/qdebug.h>
 
 struct GpsSample {
@@ -74,6 +75,7 @@ public:
 private:
     static bool lessThanTime(const GpsSample &a, const GpsSample &b) { return a.time <= b.time; }
 };
+
 
 QString msToDateTimeString(qint64 msSinceEpoch);
 QString msToDateTimeStringHuman(qint64 msSinceEpoch);
