@@ -271,14 +271,20 @@ int mergeTracks(const QString &hrmFile, const QString &gpxFilename, bool errorCo
 
       3/11 = x/13
                   */
-
-    QFile gpxFile(QStringLiteral("output.gpx"));
+    QFileInfo fi(gpxFilename);
+    qint64 startTime = mergedSamples.startTime();
+    QDateTime dt;
+    dt.setMSecsSinceEpoch(startTime);
+    const QString dateString = dt.toString(QLatin1String("yyyyMMdd"));
+    const QString outputFileName(QString::fromLatin1("combined/%1-%2.gpx").arg(dateString, fi.baseName()));
+    QFile gpxFile(outputFileName);
     if (!gpxFile.open(QIODevice::WriteOnly)) {
         return -1;
     }
     if (!saveGPX(mergedSamples, &gpxFile))
         return -1;
     gpxFile.close();
+    printf("Merged file written to: %s\n", qPrintable(outputFileName));
     return 0;
 }
 
