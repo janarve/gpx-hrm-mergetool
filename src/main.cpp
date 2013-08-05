@@ -19,6 +19,7 @@ void usage()
            " --fetch-hrm        Download HR data from Polar watch\n"
            " --error-correction Try to detect errors and correct them\n"
            " --ignore-gpx-timestamps Use HRM speeds to create trackpoints in a route\n"
+           " --altitude <startaltitude>[:<endaltitude>]\n"
            );
 }
 
@@ -132,9 +133,9 @@ int readHRMData(HWND hWnd)
     return error;
 }
 
-int mergeTracks(const QString &hrmFile, const QString &gpxFilename, bool errorCorrection = false, bool ignoreGpxTimestamps = false)
+int mergeTracks(const QString &hrmFile, const QString &gpxFilename, bool errorCorrection = false, bool ignoreGpxTimestamps = false,
+                float startAltitude = -FLT_MAX, float endAltitude = -FLT_MAX)
 {
-    printf("ignoreGpxTimestamps:%d, \n", ignoreGpxTimestamps);
     SampleData gpxSampleData;
     if (!gpxFilename.isNull()) {
         QFile gpxFile(gpxFilename);
@@ -155,6 +156,9 @@ int mergeTracks(const QString &hrmFile, const QString &gpxFilename, bool errorCo
         printf("Interval:       %d\n", hrmReader.interval());
         printf("Samples:        %d\n", hrmSampleData.count());
     }
+
+    if (startAltitude != -FLT_MAX || endAltitude != -FLT_MAX)
+        hrmSampleData.correctAltitudes(startAltitude, endAltitude);
 
     SampleData mergedSamples;
 
@@ -296,6 +300,10 @@ int main(int argc, char **argv)
     bool ignore_gpx_timestamps = false;
     QString gpxFilename, hrmFile;
     bool firstPass = true;
+    bool altitudeDataIsHere = false;
+    bool commandLineOk = true;
+    float startAltitude = -FLT_MAX;
+    float endAltitude = -FLT_MAX;
     foreach (const QString &arg, app.arguments()) {
         if (firstPass) {
             firstPass = false;
@@ -307,29 +315,47 @@ int main(int argc, char **argv)
             error_correction = true;
         } else if (arg == QLatin1String("--ignore-gpx-timestamps")) {
             ignore_gpx_timestamps = true;
+        } else if (arg == QLatin1String("--altitude")) {
+            altitudeDataIsHere = true;
         } else {
-            if (hrmFile.isNull())
-                hrmFile = arg;
-            else
-                gpxFilename = arg;
+            if (altitudeDataIsHere) {
+                // Hilton: 160.44
+                // Nydalen: 100.26
+                QStringList altitudes = arg.split(QLatin1Char(':'));
+                if (altitudes.count() >= 1) {
+                    if (!altitudes.at(0).isEmpty())
+                        startAltitude = altitudes.at(0).toFloat(&commandLineOk);
+                }
+                if (commandLineOk && altitudes.count() == 2) {
+                    if (!altitudes.at(1).isEmpty())
+                        endAltitude = altitudes.at(1).toFloat(&commandLineOk);
+                }
+
+                if (startAltitude == -FLT_MAX && endAltitude == -FLT_MAX) {
+                    commandLineOk = false;
+                    break;
+                }
+                altitudeDataIsHere = false;
+            } else {
+                if (hrmFile.isNull())
+                    hrmFile = arg;
+                else
+                    gpxFilename = arg;
+            }
         }
     }
     
-    if (fetch_hrm) {
-        readHRMData(0);
-    } else if (!hrmFile.isNull()) {
-/*
-        QNetworkAccessManager *manager = new QNetworkAccessManager(this);
-        connect(manager, SIGNAL(finished(QNetworkReply*)),
-        this, SLOT(replyFinished(QNetworkReply*)));
-        manager->get(QNetworkRequest(QUrl("http://qt.nokia.com")));
-*/
-        mergeTracks(hrmFile, gpxFilename, error_correction, ignore_gpx_timestamps);
+    if (commandLineOk) {
+        if (fetch_hrm) {
+            readHRMData(0);
+        } else if (!hrmFile.isNull()) {
+            mergeTracks(hrmFile, gpxFilename, error_correction, ignore_gpx_timestamps, startAltitude, endAltitude);
+        } else {
+            usage();
+        }
     } else {
         usage();
     }
 
-
-    //merge(args.at(1), args.at(2), args.at(3));
     return app.exit();
 }

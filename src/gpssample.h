@@ -47,6 +47,7 @@ public:
     int maximumHR() const;
 
     void correctTimeErrors();
+    void correctAltitudes(float startAltitude, float endAltitude);
     void print() const;
     void printSamples() const;
     bool writeGPX(const QString &fileName);

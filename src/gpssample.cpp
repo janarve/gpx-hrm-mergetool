@@ -140,6 +140,35 @@ void SampleData::correctTimeErrors()
     }
 }
 
+/*!
+    Adjusts the altitudes so that the altitude profile starts at \a startAltitude
+    and ends at \a endAltitude, while keeping the general profile.
+    This is useful for e.g. calibrating altitude data read with a baryometer.
+
+    If \a startAltitude or \a endAltitude is -FLT_MAX,
+    all altitudes will be moved with the same height so that either the starting point
+    or the ending point matches.
+*/
+void SampleData::correctAltitudes(float startAltitude, float endAltitude = -FLT_MAX)
+{
+    if (!isEmpty() && (startAltitude != -FLT_MAX || endAltitude != -FLT_MAX)) {
+
+        const float sampledStartEle = first().ele;
+        const float sampledEndEle = last().ele;
+
+        float startDelta = (startAltitude == -FLT_MAX ? 0 : startAltitude - sampledStartEle); // 160 - 213 = -53
+        float endDelta = (endAltitude == -FLT_MAX ? startDelta : endAltitude - sampledEndEle);       // 140 - 153 = -13
+        if (startAltitude == -FLT_MAX)
+            startDelta = endDelta;
+
+        const float ascent = (endDelta - startDelta)/count();
+        for (int i = 0; i < count(); ++i) {
+            GpsSample &curr = operator[](i);
+            curr.ele += startDelta - ascent * i;
+        }
+    }
+}
+
 
 void SampleData::print() const
 {
