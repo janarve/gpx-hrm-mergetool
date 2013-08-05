@@ -116,6 +116,7 @@ bool saveGPX(const SampleData &sampleData, QIODevice *device)
         return false;
     }
     QTextStream stream(device);
+    stream.setCodec("UTF-8");
 
     const GpsSample &sample = sampleData.first();
     QDateTime dt;
@@ -148,7 +149,7 @@ bool saveGPX(const SampleData &sampleData, QIODevice *device)
     stream << "    <name>" << name << "</name>\n";
     stream << "    <desc>" << sampleData.metaData.description << "</desc>\n";
     stream << "    <author>\n";
-    stream << "      <name>Jan Arve S\xc3\xa6ther</name>\n";    //&aelig;
+    stream << "      <name>Jan Arve S\xe6ther</name>\n";    //&aelig;
     stream << "    </author>\n";
     stream << "    <link href=\"sjarve@gmail.com\">\n";
     stream << "      <text>HrmGpx</text>\n";
