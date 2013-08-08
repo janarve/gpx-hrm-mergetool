@@ -27,5 +27,10 @@ HEADERS += \
     geo.h \
     geolocationinterpolator.h \
     geolocationiterator.h
-    
-include(hrmcom/hrmcom.pri)
+
+exists(hrmcom/hrmcom.pri) {
+    include(hrmcom/hrmcom.pri)
+    DEFINES *= HAVE_HRMCOM
+} else {
+    message("Polar hrmcom library not found, disabling Polar HRM monitor support")
+}

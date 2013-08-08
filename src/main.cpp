@@ -3,7 +3,9 @@
 
 #include <stdio.h>
 
+#ifdef HAVE_HRMCOM
 #include <hrmcom.h>
+#endif
 
 #include "gpxparser.h"
 #include "hrmparser.h"
@@ -16,13 +18,16 @@ void usage()
            "  hrmgpx [options] <hrmFile> [gpxFile]\n"
            "\n"
            "Options:\n"
-           " --fetch-hrm        Download HR data from Polar watch\n"
-           " --error-correction Try to detect errors and correct them\n"
-           " --ignore-gpx-timestamps Use HRM speeds to create trackpoints in a route\n"
-           " --altitude <startaltitude>[:<endaltitude>]\n"
+#ifdef HAVE_HRMCOM
+           " --fetch-hrm                    Download HR data from Polar watch\n"
+#endif
+           " --error-correction             Try to detect errors and correct them\n"
+           " --ignore-gpx-timestamps        Use HRM speeds to create trackpoints in a route\n"
+           " --altitude <start>[:<end>]     Adjust altitude to <start>, <end> or both\n"
            );
 }
 
+#ifdef HAVE_HRMCOM
 int readHRMData(HWND hWnd)
 {
     int error = 0;
@@ -132,6 +137,7 @@ int readHRMData(HWND hWnd)
 
     return error;
 }
+#endif
 
 int mergeTracks(const QString &hrmFile, const QString &gpxFilename, bool errorCorrection = false, bool ignoreGpxTimestamps = false,
                 float startAltitude = -FLT_MAX, float endAltitude = -FLT_MAX)
@@ -295,7 +301,9 @@ int mergeTracks(const QString &hrmFile, const QString &gpxFilename, bool errorCo
 int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
+#ifdef HAVE_HRMCOM
     bool fetch_hrm = false;
+#endif
     bool error_correction = false;
     bool ignore_gpx_timestamps = false;
     QString gpxFilename, hrmFile;
@@ -309,14 +317,16 @@ int main(int argc, char **argv)
             firstPass = false;
             continue;
         }
-        if (arg == QLatin1String("--fetch-hrm")) {
+        if (arg == QLatin1String("--altitude")) {
+            altitudeDataIsHere = true;
+#ifdef HAVE_HRMCOM
+        } else if (arg == QLatin1String("--fetch-hrm")) {
             fetch_hrm = true;
+#endif
         } else if (arg == QLatin1String("--error-correction")) {
             error_correction = true;
         } else if (arg == QLatin1String("--ignore-gpx-timestamps")) {
             ignore_gpx_timestamps = true;
-        } else if (arg == QLatin1String("--altitude")) {
-            altitudeDataIsHere = true;
         } else {
             if (altitudeDataIsHere) {
                 // Hilton: 160.44
@@ -346,8 +356,11 @@ int main(int argc, char **argv)
     }
     
     if (commandLineOk) {
-        if (fetch_hrm) {
+        if (0) {
+#ifdef HAVE_HRMCOM
+        } else if (fetch_hrm) {
             readHRMData(0);
+#endif
         } else if (!hrmFile.isNull()) {
             mergeTracks(hrmFile, gpxFilename, error_correction, ignore_gpx_timestamps, startAltitude, endAltitude);
         } else {
