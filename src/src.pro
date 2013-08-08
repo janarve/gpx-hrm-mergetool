@@ -16,7 +16,8 @@ SOURCES += main.cpp \
     gpssample.cpp \ 
     geolocationinterpolator.cpp \
     geolocationiterator.cpp \
-    geo.cpp
+    geo.cpp \
+    polardevice.cpp
 
 CONFIG += console
 
@@ -26,7 +27,8 @@ HEADERS += \
     gpssample.h \
     geo.h \
     geolocationinterpolator.h \
-    geolocationiterator.h
+    geolocationiterator.h \
+    polardevice.h
 
 exists(hrmcom/hrmcom.pri) {
     include(hrmcom/hrmcom.pri)
