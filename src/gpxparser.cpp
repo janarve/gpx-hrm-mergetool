@@ -77,23 +77,41 @@ bool GpxStreamReader::read(SampleData *sampleData)
                     eleElement = false;
                 } else if (timeElement) {
                     QString timeStr = text().toString();
+                    //yyyy-MM-ddThh:mm:ss(.z)
+                    // Local? time: yyyy-MM-ddThh:mm:ss(.z)
+                    // UTC  time  : yyyy-MM-ddThh:mm:ss(.z)Z
+                    // Timezone   : yyyy-MM-ddThh:mm:ss(.z)+03:00
+                    //yyyy-MM-ddThh:mm:ss(.z)?(Z|+hh:mm)
                     //2013-07-09T15:26:48Z
-                    QString format("yyyy-MM-ddThh:mm:ss.z");    // note z is centiseconds!!
-                    QDateTime dt = QDateTime::fromString(timeStr, format);
-                    if (!dt.isValid()) {
-                        QString format("yyyy-MM-ddThh:mm:ss");    // somtimes centiseconds can be omitted...
-                        dt = QDateTime::fromString(timeStr, format);
+                    uint milliseconds = 0;
+                    const int indexOfDot = timeStr.indexOf(QLatin1Char('.'));
+
+                    if (indexOfDot >= 0) {
+                        int i = indexOfDot;
+                        ++i;
+                        while (i < timeStr.count() && timeStr.at(i++).isDigit()) {  }
+
+                        // The spec is unclear whether there can be more than 3 fractional digits
+                        const QString strMS = timeStr.mid(indexOfDot + 1, qMax(3, i - indexOfDot - 1));
+                        if (!strMS.isEmpty()) {
+                            static int powers[] = {100, 10, 1};
+                            const int numberAfterDot = strMS.toUInt(&ok);
+                            if (!ok)
+                                break;
+                            const int digits = strMS.count();
+                            Q_ASSERT(digits >= 1);
+                            milliseconds = numberAfterDot * powers[digits - 1];
+                            timeStr.remove(indexOfDot, i - indexOfDot);
+                        }
                     }
-                    if (!dt.isValid()) {
-                        QString format("yyyy-MM-ddThh:mm:ssZ");    // somtimes centiseconds can be omitted...
-                        dt = QDateTime::fromString(timeStr, format);
-                    }
+                    QDateTime dt = QDateTime::fromString(timeStr,Qt::ISODate);
                     ok = dt.isValid();
                     if (!ok) {
                         qWarning("(%d): Error reading time data", lineNumber());
                         break;
                     }
                     trkpt.time = dt.toMSecsSinceEpoch();
+                    trkpt.time += milliseconds;
                     timeElement = false;
                 }
             }
