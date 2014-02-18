@@ -7,8 +7,12 @@
 #include "hrmparser.h"
 #include "geolocationiterator.h"
 #include "geolocationinterpolator.h"
-#include "polardevice.h"
 
+#include <float.h>
+
+#ifdef HAVE_HRMCOM
+# include "polardevice.h"
+#endif
 void usage()
 {
     printf("usage:\n"
@@ -256,5 +260,6 @@ int main(int argc, char **argv)
         usage();
     }
 
-    return app.exit();
+    app.exit();
+    return 0;
 }

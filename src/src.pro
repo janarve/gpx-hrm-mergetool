@@ -14,10 +14,9 @@ SOURCES += main.cpp \
     gpxparser.cpp \
     hrmparser.cpp \
     gpssample.cpp \ 
-    geolocationinterpolator.cpp \
-    geolocationiterator.cpp \
     geo.cpp \
-    polardevice.cpp
+    geolocationinterpolator.cpp \
+    geolocationiterator.cpp
 
 CONFIG += console
 
@@ -27,12 +26,13 @@ HEADERS += \
     gpssample.h \
     geo.h \
     geolocationinterpolator.h \
-    geolocationiterator.h \
-    polardevice.h
+    geolocationiterator.h
 
 exists(hrmcom/hrmcom.pri) {
     include(hrmcom/hrmcom.pri)
     DEFINES *= HAVE_HRMCOM
+    SOURCES *= polardevice.cpp
+    HEADERS *= polardevice.h
 } else {
     message("Polar hrmcom library not found, disabling Polar HRM monitor support")
 }

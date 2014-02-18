@@ -4,6 +4,7 @@
 #include "gpssample.h"
 #include "geo.h"
 
+#include <float.h>
 QString msToDateTimeStringHuman(qint64 msSinceEpoch)
 {
     QDateTime dt;
@@ -83,8 +84,6 @@ int SampleData::maximumHR() const {
 
 void SampleData::correctTimeErrors()
 {
-    double prevSpeed = 0;
-    double prevSpeedDelta = 0;
     if (!isEmpty()) {
         GpsSample prev = first();
         int lastGoodIndex = -1;
@@ -133,7 +132,6 @@ void SampleData::correctTimeErrors()
                 } else {
                     lastGoodIndex = i;
                 }
-                prevSpeed = speed;
             }
             prev = curr;
         }
@@ -229,7 +227,7 @@ void SampleData::printSamples() const
     for (int i = 0; i < count(); ++i) {
         GpsSample sample = at(i);
         QString strTime = msToDateTimeString(sample.time);
-        printf("hrm: %s %g, %g, %g", qPrintable(strTime), sample.hr, sample.speed/10, sample.ele);
+        printf("hrm: %s %d, %g, %g", qPrintable(strTime), sample.hr, sample.speed/10, sample.ele);
     }
 }
 

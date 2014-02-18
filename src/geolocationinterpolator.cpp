@@ -3,6 +3,8 @@
 #include "geo.h"
 #include <QtCore/qglobal.h>
 
+#include <stdio.h>
+
 static const double InvalidGeoPos = 400.0;
 
 

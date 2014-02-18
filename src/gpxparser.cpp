@@ -27,7 +27,7 @@ bool GpxStreamReader::read(SampleData *sampleData)
     while (!atEnd()) {
         QXmlStreamReader::TokenType tt = readNext();
         if (error()) {
-            qWarning("error at line: %d (%d %s)\n", lineNumber(), (int)error(), qPrintable(errorString()));
+            qWarning("error at line: %lld (%d %s)\n", lineNumber(), (int)error(), qPrintable(errorString()));
             return false;
         } else {
             if (tt == QXmlStreamReader::StartElement && name() == "metadata") {
@@ -59,7 +59,7 @@ bool GpxStreamReader::read(SampleData *sampleData)
                 if (ok)
                     lon = attr.value("lon").toString().toDouble(&ok);
                 if (!ok) {
-                    qWarning("(%d): Error reading longitude and latitude data", lineNumber());
+                    qWarning("(%lld): Error reading longitude and latitude data", lineNumber());
                     break;
                 }
                 trkpt.lat = lat;
@@ -70,7 +70,7 @@ bool GpxStreamReader::read(SampleData *sampleData)
                 if (eleElement) {
                     float ele = text().toString().toFloat(&ok);
                     if (!ok) {
-                        qWarning("(%d): Error reading elevation data", lineNumber());
+                        qWarning("(%lld): Error reading elevation data", lineNumber());
                         break;
                     }
                     trkpt.ele = ele;
